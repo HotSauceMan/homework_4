@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 from homework.models import load_model, save_model  # Import load_model and save_model from models.py
-from homework.datasets import RoadDataset  # Assuming you have a dataset class defined for handling data
+from homework.datasets.road_dataset import RoadDataset # Assuming you have a dataset class defined for handling data
 
 def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch):
     # Load model
