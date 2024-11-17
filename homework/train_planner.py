@@ -14,7 +14,7 @@ def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # Explicit dataset path
-    dataset_path = "homework_4/drive_data/train"  # Path to the training dataset
+    dataset_path = "drive_data/train"  # Path to the training dataset
 
     # Load dataset using load_data
     train_loader = load_data(
