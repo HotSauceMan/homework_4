@@ -30,8 +30,15 @@ def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch
     for epoch in range(num_epoch):
         epoch_loss = 0
         for batch in train_loader:
+            #print("Batch structure:", batch)
+            #print("Available keys:", batch.keys())
+            #break 
             # Assume batch contains inputs and target waypoints
-            inputs, targets = batch["inputs"], batch["targets"]
+            inputs = {
+            "track_left": batch["track_left"],
+            "track_right": batch["track_right"]
+            }
+            targets = batch["waypoints"] 
 
             # Forward pass
             outputs = model(**inputs)
