@@ -2,7 +2,7 @@ import argparse
 import torch
 from torch.utils.data import DataLoader
 from homework.models import load_model, save_model  # Import load_model and save_model from models.py
-from homework.datasets.road_dataset import RoadDataset # Assuming you have a dataset class defined for handling data
+from homework.datasets.road_dataset import load_data  # Use load_data to handle dataset loading
 
 def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch):
     # Load model
@@ -13,9 +13,18 @@ def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch
     criterion = torch.nn.MSELoss()  # Assuming we're using MSE loss for waypoint prediction
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    # Load dataset
-    train_dataset = RoadDataset(transform=transform_pipeline)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    # Explicit dataset path
+    dataset_path = "homework_4/drive_data/train"  # Path to the training dataset
+
+    # Load dataset using load_data
+    train_loader = load_data(
+        dataset_path=dataset_path,  # Specify dataset path (e.g., 'homework_4/drive_data/train')
+        transform_pipeline=transform_pipeline,
+        return_dataloader=True,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        shuffle=True,  # Shuffle for training
+    )
 
     # Training loop
     for epoch in range(num_epoch):
@@ -58,7 +67,7 @@ def main():
         num_workers=args.num_workers,
         lr=args.lr,
         batch_size=args.batch_size,
-        num_epoch=args.num_epoch
+        num_epoch=args.num_epoch,
     )
 
 if __name__ == "__main__":
