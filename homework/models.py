@@ -34,42 +34,60 @@ class MLPPlanner(nn.Module):
 
 
 class TransformerPlanner(nn.Module):
-    def __init__(self, n_track: int = 10, n_waypoints: int = 3, d_model: int = 64):
+    def __init__(self, n_track: int = 10, n_waypoints: int = 3, d_model: int = 64, nhead: int = 4, num_layers: int = 2):
         super().__init__()
         self.n_track = n_track
         self.n_waypoints = n_waypoints
         self.d_model = d_model
+        self.nhead = nhead
+
+        # Ensure d_model is divisible by nhead
+        if d_model % nhead != 0:
+            raise ValueError(f"d_model ({d_model}) must be divisible by nhead ({nhead})")
 
         # Embedding layer for input track points
-        self.track_embedding = nn.Linear(2, d_model)
+        self.track_embedding = nn.Linear(2, d_model)  # Each track point is 2D
 
         # Query embeddings for each waypoint
-        self.query_embed = nn.Embedding(n_waypoints, d_model)
+        self.query_embed = nn.Embedding(n_waypoints, d_model)  # n_waypoints x d_model
 
         # Transformer decoder
-        decoder_layer = nn.TransformerDecoderLayer(d_model=d_model, nhead=4)
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=2)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead)
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
 
         # Output layer to project back to 2D waypoints
-        self.output_layer = nn.Linear(d_model, 2)
+        self.output_layer = nn.Linear(d_model, 2)  # Output 2D waypoints
 
     def forward(self, track_left: torch.Tensor, track_right: torch.Tensor, **kwargs) -> torch.Tensor:
-        # Concatenate track_left and track_right
+        # Concatenate track_left and track_right along the sequence dimension
         track = torch.cat([track_left, track_right], dim=1)  # Shape: (B, 2 * n_track, 2)
-        
+        #print(f"Track shape (before embedding): {track.shape}")
+
         # Embed track points
         track_embedded = self.track_embedding(track)  # Shape: (B, 2 * n_track, d_model)
-        track_embedded = track_embedded.permute(1, 0, 2)  # For Transformer: (S, B, d_model)
+        #print(f"Track embedded shape: {track_embedded.shape}")
 
-        # Query embeddings for waypoints
-        query = self.query_embed.weight.unsqueeze(1)  # Shape: (n_waypoints, 1, d_model)
+        # Permute track_embedded to (seq_len, batch_size, d_model) for the Transformer
+        track_embedded = track_embedded.permute(1, 0, 2)  # Shape: (2 * n_track, B, d_model)
+        #print(f"Track permuted shape (for Transformer): {track_embedded.shape}")
 
-        # Decode the track information
+        # Query embeddings for waypoints (n_waypoints, batch_size, d_model)
+        query = self.query_embed.weight.unsqueeze(1).repeat(1, track_embedded.size(1), 1)  # (n_waypoints, B, d_model)
+        #print(f"Query shape: {query.shape}")
+
+        # Decode the track information using the Transformer decoder
         decoded = self.decoder(query, track_embedded)  # Shape: (n_waypoints, B, d_model)
-        decoded = decoded.permute(1, 0, 2)  # Shape: (B, n_waypoints, d_model)
+        #print(f"Decoded shape (Transformer output): {decoded.shape}")
 
-        # Project to 2D waypoints
-        return self.output_layer(decoded)  # Shape: (B, n_waypoints, 2)
+        # Permute decoded back to (B, n_waypoints, d_model)
+        decoded = decoded.permute(1, 0, 2)  # Shape: (B, n_waypoints, d_model)
+        #print(f"Decoded permuted shape (for output): {decoded.shape}")
+
+        # Project the decoded output to 2D waypoints
+        output = self.output_layer(decoded)  # Shape: (B, n_waypoints, 2)
+        #print(f"Output shape: {output.shape}")
+
+        return output  # Final output: (B, n_waypoints, 2)
 
 
 class CNNPlanner(nn.Module):
