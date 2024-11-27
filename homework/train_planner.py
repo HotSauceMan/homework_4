@@ -5,6 +5,8 @@ from homework.models import load_model, save_model  # Import load_model and save
 from homework.datasets.road_dataset import load_data  # Use load_data to handle dataset loading
 
 def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch):
+    if model_name == "cnn_planner":
+        transform_pipeline = "default"
     # Load model
     model = load_model(model_name=model_name)
     model.train()  # Set model to training mode
@@ -30,18 +32,24 @@ def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch
     for epoch in range(num_epoch):
         epoch_loss = 0
         for batch in train_loader:
-            #print("Batch structure:", batch)
-            #print("Available keys:", batch.keys())
-            #break 
-            # Assume batch contains inputs and target waypoints
-            inputs = {
-            "track_left": batch["track_left"],
-            "track_right": batch["track_right"]
-            }
-            targets = batch["waypoints"] 
+            # Only print for the first batch to avoid clutter
+            # Handle model-specific inputs
+            if model_name == "cnn_planner":
+                inputs = batch["image"]  # CNNPlanner uses 'image' as input
+            else:
+                inputs = {
+                    "track_left": batch["track_left"],
+                    "track_right": batch["track_right"]
+                }
+            
+            targets = batch["waypoints"]  # Common target for all models
 
             # Forward pass
-            outputs = model(**inputs)
+            if model_name == "cnn_planner":
+                outputs = model(inputs)
+            else:
+                outputs = model(**inputs)
+                
             loss = criterion(outputs, targets)
             
             # Backward pass and optimization
@@ -57,7 +65,7 @@ def train(model_name, transform_pipeline, num_workers, lr, batch_size, num_epoch
     # Save the trained model
     save_model(model)
     print("Model saved.")
-
+    
 def main():
     parser = argparse.ArgumentParser(description="Train a planner model")
     parser.add_argument("--model_name", type=str, required=True, help="Name of the model to train (e.g., 'mlp_planner')")
